@@ -1,11 +1,16 @@
 bit=require'bitty'
 require'fn'
-ROM=require'rom'
 require'chip8'
 
 local pixs=8
 
+  
 function love.load()
+  love.window.setMode(pixs*chip8.w,pixs*chip8.h)
+end
+
+function love.filedropped(file)
+  chip8:loadFile(file:getFilename())
   chip8:run()
 end
 
@@ -14,21 +19,18 @@ function love.update()
 end
 
 function love.draw()
-  for i=1,64 do
-    for j=1,32 do
-      if gfx[i][j]==true then
-        love.graphics.rectangle('fill',(i-1)*pixs,(j-1)*pixs,pixs,pixs)
+  if chip8.running then
+    for i=1,chip8.w do
+      for j=1,chip8.h do
+        if gfx[i][j]==true then
+          love.graphics.rectangle('fill',(i-1)*pixs,(j-1)*pixs,pixs,pixs)
+        end
       end
     end
+  else
+    love.graphics.print'Drop .ch8 ROM File'
   end
-  love.graphics.print(love.timer.getFPS())
-  local t=tohex(opcode,4)..'\n'
-  for i=0x200,#mem-1 do
-    if pc==i then t=t..'>' else t=t..'  ' end
-    t=t..mem[i]..' '
-    if i%8==0 then t=t..'\n' end
-  end
-  love.graphics.print(t,64*8)
+  love.graphics.print(love.timer.getFPS()..' FPS',0,love.graphics.getHeight()-12)
 end
 
 function love.keypressed(k)

@@ -1,4 +1,5 @@
-chip8={running=false}
+chip8={running=false,w=64,h=32}
+ROM={}
 
 local debug1=false --debug opcode
 local debug2=false --debug draw
@@ -17,11 +18,19 @@ function chip8:keyUp(i)
   key[i]=false
 end
 
-function chip8:stop()
+function chip8:stop(hide)
   self.running=false
-  chip8.init()
-  print'[STOP]'
+  self:init()
+  if not hide then print'[STOP]' end
 end 
+
+function chip8:loadFile(f)
+  self:stop(1)
+  local file = io.open(f, "rb")
+  local str = file:read("*a")
+  ROM = {str:byte(1, #str)}
+  file:close()
+end
 
 function chip8:run()
   self:init()
@@ -52,18 +61,18 @@ function chip8.init()
   mem={} --(4096 byte)
   for i=0,0xFFF do mem[i]=0x00 end
   
-  print'loading ROM...'
+  print'Loading font...'
   for ii=0,0xFFFF do
     local d=chip8.font[ii+1]
     if d then
       mem[ii]=d
-      print(tohex(ii,3),tohex(d,2))
     else
       break 
     end
   end
-  print'Font loaded'
-  --love.timer.sleep(1)
+  
+  print'loading ROM...'
+  ROM.start=ROM.start or 0x200
   for i=ROM.start,0xFFFF do 
     local d=ROM[i-ROM.start+1] 
     if d then
@@ -72,6 +81,7 @@ function chip8.init()
       break
     end
   end
+  
   print'OK!'
   
   V={[0]=0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} --cpu registers V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 VA VB VC VD VE (VF -carry)
@@ -79,7 +89,12 @@ function chip8.init()
   function chip8.cls()
     --64x32 screen
     gfx={}
-    for i=1,64 do gfx[i]={} end 
+    for i=1,chip8.w do 
+      gfx[i]={} 
+      for j=1,chip8.h do
+        gfx[i][j]=false
+      end
+    end 
   end
   chip8.cls()
   delay_timer,sound_timer=0,0
@@ -177,8 +192,15 @@ function chip8.loop()
             if ix==1 then 
               V[0xF]=1 
             end
-            gfx[x+j+1][y+i+1]=true
-            if debug2 then print('[DRAWPIX]',x+j,y+i) end
+            local tdx,tdy=x+j+1,y+i+1
+            if gfx[tdx] and gfx[tdx][tdy]~=nil then
+              gfx[tdx][tdy]=true
+            else
+              print('[WARN]','drawing out of screen',tdx-1,tdy-1)
+            end
+            if debug2 then 
+              print('[DRAWPIX]',x+j,y+i) 
+            end
           end
         end
       end
@@ -203,7 +225,7 @@ function chip8.loop()
       pc=pc+2
     elseif opcode==0x00EE then
       sp=sp-1 --ret
-      pc=stack[sp]
+      pc=stack[sp]+2
     elseif bit.band(opcode,0xF00F)==0x8004 then
       --adds the value of VY to VX
       local rh,lh=bit.band(opcode,0x00F0),bit.band(opcode,0x0F00)

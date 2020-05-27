@@ -5,3 +5,14 @@ end
 function hextonuber(hex)
   return tonumber(hex,16)
 end
+function fsbase(h)
+  if love and not(h) then
+    if love.filesystem.isFused() then
+      return love.filesystem.getSourceBaseDirectory()
+    else
+      return love.filesystem.getSource()
+    end
+  else 
+    return io.popen"cd":read'*l'
+  end
+end
