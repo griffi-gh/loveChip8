@@ -9,6 +9,7 @@ local limit=true
 local controls=love.graphics.newImage('defaultControls.jpg')
 function love.load()
   love.window.setMode(pixs*chip8.w,pixs*chip8.h,{vsync=limit})
+  love.window.setTitle('CHIP-8')
 end
 
 function love.filedropped(file)

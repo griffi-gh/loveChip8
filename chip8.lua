@@ -233,6 +233,11 @@ function chip8.loop()
     elseif bit.band(opcode,0xF0FF)==0xF007 then
       V[bit.brshift(bit.band(opcode,0x0F00),8)]=delay_timer
       pc=pc+2
+    elseif bit.band(opcode,0xF00F)==0x8002 then
+      local a=bit.brshift(bit.band(opcode,0x0F00),8)
+      local b=bit.brshift(bit.band(opcode,0x00F0),4)
+      V[a]=bit.band(V[a],V[b])
+      pc=pc+2
     elseif bit.band(opcode,0xF0FF)==0xF015 then
       delay_timer=V[bit.brshift(bit.band(opcode,0x0F00),8)]
       pc=pc+2
