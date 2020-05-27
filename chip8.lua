@@ -13,10 +13,12 @@ local function ec(C)
 end
 
 function chip8:keyDown(i)
-  key[i]=true
+  if type(i)=='number' and self.running then
+  key[i]=true end
 end
 function chip8:keyUp(i)
-  key[i]=false
+  if type(i)=='number' and self.running then
+  key[i]=false end
 end
 
 function chip8:stop(hide)
@@ -192,24 +194,31 @@ function chip8.loop()
       else 
         pc=pc+4
       end
+    elseif s==0xC000 then
+      V[bit.brshift(bit.band(opcode,0x0F00),8)] = bit.band(love.math.random(0,0xFF),bit.band(opcode,0x00FF))
+			pc=pc+2
     elseif s==0xD000 then --print'draw'
       local x = V[bit.brshift(bit.band(opcode,0x0F00),8)]
       local y = V[bit.brshift(bit.band(opcode,0x00F0),4)]
       local h = bit.band(opcode,0x000F)
       V[0xF]=0
       for i=0,h-1 do --y
-        local p=mem[i+I]
+        local p=mem[i+I] or 0
         for j=0,7 do --x
           if bit.band(p,bit.brshift(0x80,j))~=0 then
-            local ix=x+j+(y+i)*chip8.w
-            if ix==1 then 
-              V[0xF]=1 
-            end
-            local tdx,tdy=x+j+1,y+i+1
-            local rx,ry=tdx%(chip8.w+1),tdy%(chip8.h+1)
+            --local ix=x+j+(y+i)*chip8.w
+            --if ix==1 then 
+            --  V[0xF]=1 
+            --end
+            local tdx,tdy=x+j,y+i
+            local rx,ry=tdx%chip8.w+1,tdy%chip8.h+1
             --math.max(math.min(tdx,chip8.w+1),0),math.max(math.min(tdy,chip8.h+1),0)
             if rx>0 and rx<chip8.w+1 and ry>0 and ry<chip8.h+1 then
-              gfx[rx][ry]=not(gfx[rx][ry])
+              local setv=not(gfx[rx][ry])
+              gfx[rx][ry]=setv
+              if setv==false then 
+                V[0xF]=1 
+              end 
             end--true
             --else
               --print('[WARN]','drawing out of screen',tdx-1,tdy-1)
