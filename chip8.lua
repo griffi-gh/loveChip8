@@ -1,5 +1,6 @@
 chip8={running=false,w=64,h=32}
 ROM={}
+local BEEP = love.audio.newSource('beep.mp3','static')
 
 local debug1=false --debug opcode
 local debug2=false --debug draw
@@ -45,15 +46,6 @@ function chip8.cls()
       gfx[i][j]=false
     end
   end 
-end
-
-function overflow(n,l,h)
-  if n>h then
-    n=l+n-h
-  elseif n<l then
-    n=h-(n+(l-n))
-  end
-  return n
 end
 
 function bytel(n) --PLACEHOLDER
@@ -214,9 +206,9 @@ function chip8.loop()
               V[0xF]=1 
             end
             local tdx,tdy=x+j+1,y+i+1
-            local rx,ry=math.max(math.min(tdx,chip8.w+1),0),math.max(math.min(tdy,chip8.h+1),0)
-            
-            if rx~=0 and rx~=chip8.w+1 and ry~=0 and ry~=chip8.h+1 then
+            local rx,ry=tdx%(chip8.w+1),tdy%(chip8.h+1)
+            --math.max(math.min(tdx,chip8.w+1),0),math.max(math.min(tdy,chip8.h+1),0)
+            if rx>0 and rx<chip8.w+1 and ry>0 and ry<chip8.h+1 then
               gfx[rx][ry]=not(gfx[rx][ry])
             end--true
             --else
@@ -270,11 +262,22 @@ function chip8.loop()
       local va=bit.brshift(lh,8)
       V[va]=bytel(V[va]+V[bit.brshift(rh,4)]);
       pc=pc+2
+    elseif bit.band(opcode,0xF00F)==0x8000 then
+      local a=bit.brshift(bit.band(opcode,0x0F00),8)
+      local b=bit.brshift(bit.band(opcode,0x00F0),4)
+      V[a]=V[b]
+      pc=pc+2
     elseif bit.band(opcode,0xF0FF)==0xF033 then
       local val=V[bit.brshift(bit.band(opcode,0x0F00),8)]
       mem[I]=val/100
       mem[I+1]=(val/10)%10
       mem[I+2]=(val%100)%10
+      pc=pc+2
+    elseif bit.band(opcode,0xF0FF)==0xF065 then
+      local v=bit.brshift(bit.band(opcode,0x00F0),4)
+      for i=0,v do
+        V[i]=mem[I+i]
+      end
       pc=pc+2
     elseif bit.band(opcode,0xF0FF)==0xE09E then
       if fkey() then
@@ -294,7 +297,9 @@ function chip8.loop()
       return
     end
     
-    if sound_timer==1 then print'BEEP' end
+    if sound_timer==1 then
+      BEEP:play()
+    end
     delay_timer=math.max(0,delay_timer-1)
     sound_timer=math.max(0,sound_timer-1)
   end

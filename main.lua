@@ -5,7 +5,7 @@ require'chip8'
 local pixs=8
 local steps=8
 local limit=true
-  
+
 function love.load()
   love.window.setMode(pixs*chip8.w,pixs*chip8.h,{vsync=limit})
 end
