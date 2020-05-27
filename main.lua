@@ -22,6 +22,13 @@ function love.draw()
     end
   end
   love.graphics.print(love.timer.getFPS())
+  local t=tohex(opcode,4)..'\n'
+  for i=0x200,#mem-1 do
+    if pc==i then t=t..'>' else t=t..'  ' end
+    t=t..mem[i]..' '
+    if i%8==0 then t=t..'\n' end
+  end
+  love.graphics.print(t,64*8)
 end
 
 function love.keypressed(k)

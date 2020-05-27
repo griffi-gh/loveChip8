@@ -29,7 +29,6 @@ function chip8:run()
 end
 
 chip8.font={
-  start=0x050,
         0xF0, 0x90, 0x90, 0x90, 0xF0, -- 0
         0x20, 0x60, 0x20, 0x20, 0x70, -- 1
         0xF0, 0x10, 0xF0, 0x80, 0xF0, -- 2
@@ -54,11 +53,17 @@ function chip8.init()
   for i=0,0xFFF do mem[i]=0x00 end
   
   print'loading ROM...'
-  for i=chip8.font.start,0xFFFF do
-    local d=chip8.font[i-chip8.font.start]
-    if d==nil then break end
-    mem[i]=d
+  for ii=0,0xFFFF do
+    local d=chip8.font[ii+1]
+    if d then
+      mem[ii]=d
+      print(tohex(ii,3),tohex(d,2))
+    else
+      break 
+    end
   end
+  print'Font loaded'
+  --love.timer.sleep(1)
   for i=ROM.start,0xFFFF do 
     local d=ROM[i-ROM.start+1] 
     if d then
@@ -109,7 +114,7 @@ function chip8.loop()
     if debug1 and ppc~=pc then
       ppc=pc
       print(tohex(pc,4),tohex(opcode,4))
-      love.timer.sleep(0.2)
+      love.timer.sleep(0.3)
     end
     
     if opcode==0x0000 then
@@ -177,6 +182,9 @@ function chip8.loop()
           end
         end
       end
+      pc=pc+2
+    elseif bit.band(opcode,0xF0FF)==0xF029 then
+      I=V[bit.brshift(bit.band(opcode,0x0F00),8)]*0x5;
       pc=pc+2
     elseif bit.band(opcode,0xF0FF)==0xF01E then
       local ii=bit.brshift(bit.band(opcode,0x0F00),8)
