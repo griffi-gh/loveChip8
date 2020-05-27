@@ -40,7 +40,7 @@ function love.keypressed(k)
   local h=hextonuber(k)
   if h then chip8:keyDown(h) end
 end
-function love.released(k)
+function love.keyreleased(k)
   local h=hextonuber(k)
   if h then chip8:keyUp(h) end
 end
