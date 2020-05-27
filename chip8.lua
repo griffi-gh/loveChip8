@@ -20,7 +20,6 @@ end
 
 function chip8:stop(hide)
   self.running=false
-  self:init()
   if not hide then print'[STOP]' end
 end 
 
@@ -36,6 +35,38 @@ function chip8:run()
   self:init()
   self.running=true
 end
+
+function chip8.cls()
+  --64x32 screen
+  gfx={}
+  for i=1,chip8.w do 
+    gfx[i]={} 
+    for j=1,chip8.h do
+      gfx[i][j]=false
+    end
+  end 
+end
+
+function overflow(n,l,h)
+  if n>h then
+    n=l+n-h
+  elseif n<l then
+    n=h-(n+(l-n))
+  end
+  return n
+end
+
+function bytel(n) --PLACEHOLDER
+  local top=c or 255
+  local l=l or 0
+  if n>top then
+    n=n-(top+1)
+  elseif n<l then
+    n=(top+1)-math.abs(n)-l
+  end
+  return n
+end
+
 
 chip8.font={
         0xF0, 0x90, 0x90, 0x90, 0xF0, -- 0
@@ -86,16 +117,6 @@ function chip8.init()
   
   V={[0]=0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} --cpu registers V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 VA VB VC VD VE (VF -carry)
   I,pc=0x000,0x200 --Index register,program counter (start 0x200)
-  function chip8.cls()
-    --64x32 screen
-    gfx={}
-    for i=1,chip8.w do 
-      gfx[i]={} 
-      for j=1,chip8.h do
-        gfx[i][j]=false
-      end
-    end 
-  end
   chip8.cls()
   delay_timer,sound_timer=0,0
   stack={} --(16)
@@ -110,6 +131,9 @@ local function xxvv()
 end
 local function v1v2()
   return V[bit.brshift(bit.band(opcode,0x0F00),8)],V[bit.brshift(bit.band(opcode,0x00F0),4)]
+end
+local function fkey()
+  return key[V[bit.brshift(bit.band(opcode,0x0F00),8)]]
 end
 
 function chip8.loop()
@@ -167,10 +191,7 @@ function chip8.loop()
     elseif s==0x7000 then
       local i=bit.brshift(bit.band(opcode,0x0F00),8)
       local val=bit.band(opcode,0x00FF)
-      V[i]=V[i]+val
-      if V[i]>0xFF then
-        V[i]=V[i]-256
-      end
+      V[i]=bytel(V[i]+val)
       pc=pc+2
     elseif s==0x9000 then
       local v1,v2=v1v2()
@@ -188,22 +209,34 @@ function chip8.loop()
         local p=mem[i+I]
         for j=0,7 do --x
           if bit.band(p,bit.brshift(0x80,j))~=0 then
-            local ix=x+j+(y+i)*64
+            local ix=x+j+(y+i)*chip8.w
             if ix==1 then 
               V[0xF]=1 
             end
             local tdx,tdy=x+j+1,y+i+1
-            if gfx[tdx] and gfx[tdx][tdy]~=nil then
-              gfx[tdx][tdy]=true
-            else
-              print('[WARN]','drawing out of screen',tdx-1,tdy-1)
-            end
+            local rx,ry=math.max(math.min(tdx,chip8.w+1),0),math.max(math.min(tdy,chip8.h+1),0)
+            
+            if rx~=0 and rx~=chip8.w+1 and ry~=0 and ry~=chip8.h+1 then
+              gfx[rx][ry]=not(gfx[rx][ry])
+            end--true
+            --else
+              --print('[WARN]','drawing out of screen',tdx-1,tdy-1)
+            --end
             if debug2 then 
               print('[DRAWPIX]',x+j,y+i) 
             end
           end
         end
       end
+      pc=pc+2
+    elseif bit.band(opcode,0xF0FF)==0xF007 then
+      V[bit.brshift(bit.band(opcode,0x0F00),8)]=delay_timer
+      pc=pc+2
+    elseif bit.band(opcode,0xF0FF)==0xF015 then
+      delay_timer=V[bit.brshift(bit.band(opcode,0x0F00),8)]
+      pc=pc+2
+    elseif bit.band(opcode,0xF0FF)==0xF018 then
+      sound_timer=V[bit.brshift(bit.band(opcode,0x0F00),8)]
       pc=pc+2
     elseif bit.band(opcode,0xF0FF)==0xF029 then
       I=V[bit.brshift(bit.band(opcode,0x0F00),8)]*0x5;
@@ -235,24 +268,25 @@ function chip8.loop()
         V[0xF] = 0
       end
       local va=bit.brshift(lh,8)
-      V[va]=V[va]+V[bit.brshift(rh,4)];
+      V[va]=bytel(V[va]+V[bit.brshift(rh,4)]);
       pc=pc+2
     elseif bit.band(opcode,0xF0FF)==0xF033 then
       local val=V[bit.brshift(bit.band(opcode,0x0F00),8)]
-      if not val then
-        print'[ERR]\t0xFX33 no value'
-        chip8:stop()
-        return
-      end
       mem[I]=val/100
       mem[I+1]=(val/10)%10
       mem[I+2]=(val%100)%10
       pc=pc+2
     elseif bit.band(opcode,0xF0FF)==0xE09E then
-      if key[V[bit.brshift(bit.band(opcode,0x0F00),8)]]==true then
+      if fkey() then
         pc=pc+4
       else
         pc=pc+2
+      end
+    elseif bit.band(opcode,0xF0FF)==0xE0A1 then
+      if fkey() then
+        pc=pc+2
+      else
+        pc=pc+4
       end
     else
       print('[WARN/HIGH]\tUknown opcode',tohex(opcode,4),tohex(pc)) --chip8:stop()
