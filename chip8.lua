@@ -30,7 +30,17 @@ function chip8:loadFile(f)
   self:stop(1)
   local file = io.open(f, "rb")
   local str = file:read("*a")
-  ROM = {str:byte(1, #str)}
+  ROM={}
+  local i=0
+  while true do i=i+1 --Slice too long 'fix'
+    local byte_=str:byte(i,i)
+    if byte_ then
+      ROM[i]=byte_
+    else
+      break
+    end
+  end
+  --ROM = {str:byte(1, #str)}
   file:close()
 end
 
@@ -275,6 +285,19 @@ function chip8.loop()
       end
       local va=bit.brshift(lh,8)
       V[va]=bytel(V[va]+V[bit.brshift(rh,4)]);
+      pc=pc+2
+    elseif bit.band(opcode,0xF00F)==0x8005 then
+      local x,y=bit.brshift(bit.band(opcode,0x0F00),8),bit.brshift(bit.band(opcode,0x00F0),4)
+      if V[y]>V[x] then V[0xF]=0 else V[0xF]=1 end
+      local val=V[x]-V[y]
+      if val<0 then
+        val=val%0x100
+      end
+      V[x]=val
+      pc=pc+2
+    elseif bit.band(opcode,0xF00F)==0x8003 then
+      local x,y=bit.brshift(bit.band(opcode,0x0F00),8),bit.brshift(bit.band(opcode,0x00F0),4)
+      V[x]=bit.bxor(V[x],V[y])
       pc=pc+2
     elseif bit.band(opcode,0xF00F)==0x8000 then
       local a=bit.brshift(bit.band(opcode,0x0F00),8)
